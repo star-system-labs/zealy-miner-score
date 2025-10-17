@@ -15,6 +15,7 @@ This API bridges your MiningRig smart contracts with Zealy quests by:
 
 - [How It Works](#how-it-works)
 - [Quick Start](#quick-start)
+- [Simple Mode](#simple-mode)
 - [API Response Structure](#api-response-structure)
 - [API Endpoints](#api-endpoints)
 - [Zealy Integration Guide](#zealy-integration-guide)
@@ -100,6 +101,48 @@ PEPE_RIG_ADDRESS=0x26AB793aD774944403b29dE4eC44060bCb7e4735
 - The API uses only the individual rig addresses (no list needed!)
 - Default mainnet addresses are provided if not set
 - To use different addresses (testnet, upgraded contracts), simply set the environment variables
+
+## 🎛️ Simple Mode
+
+SIMPLE_MODE provides simplified responses perfect for one-time Zealy quests.
+
+### Enable Simple Mode
+
+```env
+SIMPLE_MODE=true
+```
+
+### How It Works
+
+- ✅ **Checks both rigs** automatically and returns the **highest score**
+- ✅ **Simplified responses** - Just pass/fail with score
+- ✅ **Prevents re-querying** - Users can only query once after success
+
+### Responses
+
+**Success (HTTP 200):**
+```json
+{
+  "success": true,
+  "message": "Pass - Your score is 1234567890"
+}
+```
+
+**Failure - No Mining (HTTP 400):**
+```json
+{
+  "success": false,
+  "message": "Fail - Your score is 0"
+}
+```
+
+**Failure - Already Queried (HTTP 400):**
+```json
+{
+  "success": false,
+  "message": "You already did this or have not mined"
+}
+```
 
 ## Usage
 

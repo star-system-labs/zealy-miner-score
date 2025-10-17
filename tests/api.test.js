@@ -303,4 +303,133 @@ test('MiningRig API verification', async (suite) => {
       assert.equal(response.body.data.scores.base, '10');
     });
   });
+
+  await suite.test('SIMPLE_MODE: returns simplified success response', async () => {
+    const originalSimpleMode = process.env.SIMPLE_MODE;
+    process.env.SIMPLE_MODE = 'true';
+    
+    delete require.cache[require.resolve('../src/index.js')];
+    const simpleModeApp = require('../src/index.js');
+    
+    await withMockContracts(async () => {
+      mockStatePrimary.scores = {
+        base: 100n,
+        balance: 200n,
+        frequency: 300n,
+        held: 400n,
+        debt: 50n,
+        redeemable: 600n,
+        totalMiningTxs: 10n
+      };
+      mockStatePrimary.score = 999n;
+      
+      simpleModeApp.locals.miningRigContracts = createMockContracts();
+
+      console.log('\n📋 SIMPLE_MODE Test - User Has Mined');
+      console.log('Mock Score:', mockStatePrimary.score.toString());
+
+      const response = await request(simpleModeApp).get(`/api/verify/${TEST_ADDRESS}`);
+
+      console.log('✅ SIMPLE_MODE Success Response:');
+      console.log(JSON.stringify(response.body, null, 2));
+      console.log('Status Code:', response.statusCode);
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body.success, true);
+      assert.equal(response.body.message, 'Pass - Your score is 999');
+      assert.ok(!response.body.data, 'Should not include detailed data in SIMPLE_MODE');
+      assert.ok(!response.body.contractAddress, 'Should not include contract address in SIMPLE_MODE');
+    });
+    
+    if (originalSimpleMode !== undefined) {
+      process.env.SIMPLE_MODE = originalSimpleMode;
+    } else {
+      delete process.env.SIMPLE_MODE;
+    }
+    delete require.cache[require.resolve('../src/index.js')];
+  });
+
+  await suite.test('SIMPLE_MODE: returns simplified failure response for no mining', async () => {
+    const originalSimpleMode = process.env.SIMPLE_MODE;
+    process.env.SIMPLE_MODE = 'true';
+    
+    delete require.cache[require.resolve('../src/index.js')];
+    const simpleModeApp = require('../src/index.js');
+    
+    await withMockContracts(async () => {
+      simpleModeApp.locals.miningRigContracts = createMockContracts();
+
+      console.log('\n📋 SIMPLE_MODE Test - User Has NOT Mined');
+      console.log('Mock Score:', mockStatePrimary.score.toString());
+
+      const response = await request(simpleModeApp).get(`/api/verify/${TEST_ADDRESS}`);
+
+      console.log('❌ SIMPLE_MODE Failure Response:');
+      console.log(JSON.stringify(response.body, null, 2));
+      console.log('Status Code:', response.statusCode);
+
+      assert.equal(response.statusCode, 400);
+      assert.equal(response.body.success, false);
+      assert.equal(response.body.message, 'Fail - Your score is 0');
+      assert.ok(!response.body.data, 'Should not include data in SIMPLE_MODE failure');
+    });
+    
+    if (originalSimpleMode !== undefined) {
+      process.env.SIMPLE_MODE = originalSimpleMode;
+    } else {
+      delete process.env.SIMPLE_MODE;
+    }
+    delete require.cache[require.resolve('../src/index.js')];
+  });
+
+  await suite.test('SIMPLE_MODE: prevents re-querying after success', async () => {
+    const originalSimpleMode = process.env.SIMPLE_MODE;
+    process.env.SIMPLE_MODE = 'true';
+    
+    delete require.cache[require.resolve('../src/index.js')];
+    const simpleModeApp = require('../src/index.js');
+    
+    await withMockContracts(async () => {
+      mockStatePrimary.scores = {
+        base: 100n,
+        balance: 200n,
+        frequency: 300n,
+        held: 400n,
+        debt: 50n,
+        redeemable: 600n,
+        totalMiningTxs: 10n
+      };
+      mockStatePrimary.score = 777n;
+      
+      simpleModeApp.locals.miningRigContracts = createMockContracts();
+
+      console.log('\n📋 SIMPLE_MODE Test - Re-Query Prevention');
+      console.log('Mock Score:', mockStatePrimary.score.toString());
+
+      console.log('\n🔄 First Query (should succeed):');
+      const firstResponse = await request(simpleModeApp).get(`/api/verify/${TEST_ADDRESS}`);
+      console.log(JSON.stringify(firstResponse.body, null, 2));
+      console.log('Status Code:', firstResponse.statusCode);
+      
+      assert.equal(firstResponse.statusCode, 200);
+      assert.equal(firstResponse.body.success, true);
+      assert.equal(firstResponse.body.message, 'Pass - Your score is 777');
+
+      console.log('\n🔄 Second Query (should be blocked):');
+      const secondResponse = await request(simpleModeApp).get(`/api/verify/${TEST_ADDRESS}`);
+      console.log(JSON.stringify(secondResponse.body, null, 2));
+      console.log('Status Code:', secondResponse.statusCode);
+      
+      assert.equal(secondResponse.statusCode, 400);
+      assert.equal(secondResponse.body.success, false);
+      assert.equal(secondResponse.body.message, 'You already did this or have not mined');
+    });
+    
+    if (originalSimpleMode !== undefined) {
+      process.env.SIMPLE_MODE = originalSimpleMode;
+    } else {
+      delete process.env.SIMPLE_MODE;
+    }
+    delete require.cache[require.resolve('../src/index.js')];
+  });
 });

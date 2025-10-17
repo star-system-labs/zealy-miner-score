@@ -7,15 +7,15 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const RPC_URL = process.env.RPC_URL;
+const SIMPLE_MODE = process.env.SIMPLE_MODE === 'true';
 
-// Named Mining Rig Configuration from Environment Variables
+const queriedAddresses = new Set();
+
 const SHIBA_RIG_ADDRESS = process.env.SHIBA_RIG_ADDRESS || '0x86Ae97f9245c592d2cDA14D1BC31104228eAE569';
 const PEPE_RIG_ADDRESS = process.env.PEPE_RIG_ADDRESS || '0x26AB793aD774944403b29dE4eC44060bCb7e4735';
 
-// Build the rig configuration array directly from named addresses
 const UNIQUE_MINING_RIG_ADDRESSES = [];
 
-// Validate and add SHIBA rig
 try {
   const shibaChecksummed = ethers.getAddress(SHIBA_RIG_ADDRESS);
   UNIQUE_MINING_RIG_ADDRESSES.push({ 
@@ -26,7 +26,6 @@ try {
   console.error('❌ Invalid SHIBA_RIG_ADDRESS:', SHIBA_RIG_ADDRESS);
 }
 
-// Validate and add PEPE rig
 try {
   const pepeChecksummed = ethers.getAddress(PEPE_RIG_ADDRESS);
   UNIQUE_MINING_RIG_ADDRESSES.push({ 
@@ -40,6 +39,7 @@ try {
 console.log('🔧 Named Rig Configuration:');
 console.log(`  SHIBA: ${SHIBA_RIG_ADDRESS}`);
 console.log(`  PEPE: ${PEPE_RIG_ADDRESS}`);
+console.log(`  SIMPLE_MODE: ${SIMPLE_MODE ? 'ENABLED' : 'DISABLED'}`);
 
 let provider;
 if (RPC_URL) {
@@ -106,8 +106,21 @@ app.get('/api/verify/:walletAddress', async (req, res) => {
       });
     }
 
+    if (SIMPLE_MODE) {
+      const normalizedAddress = walletAddress.toLowerCase();
+      if (queriedAddresses.has(normalizedAddress)) {
+        return res.status(400).json({
+          success: false,
+          message: 'You already did this or have not mined'
+        });
+      }
+    }
+
     const contracts = getMiningRigContracts(req);
     let lastError;
+    let highestScore = 0n;
+    let highestScoreRig = null;
+    let highestScoreData = null;
 
     for (const entry of contracts) {
       try {
@@ -119,31 +132,47 @@ app.get('/api/verify/:walletAddress', async (req, res) => {
 
         const { scoreData, computedScore } = evaluation;
 
-        return res.json({
-          success: true,
-          hasMined: true,
-          contractAddress: entry.address,
-          rigName: entry.name || 'Unknown',
-          data: {
-            walletAddress: walletAddress,
-            hasMined: true,
-            rigName: entry.name || 'Unknown',
-            score: computedScore.toString(),
-            totalMiningTxs: scoreData.totalMiningTxs.toString(),
-            scores: {
-              base: scoreData.base.toString(),
-              balance: scoreData.balance.toString(),
-              frequency: scoreData.frequency.toString(),
-              held: scoreData.held.toString(),
-              debt: scoreData.debt.toString(),
-              redeemable: scoreData.redeemable.toString()
-            }
-          }
-        });
+        if (computedScore > highestScore) {
+          highestScore = computedScore;
+          highestScoreRig = entry;
+          highestScoreData = scoreData;
+        }
       } catch (error) {
         lastError = error;
-        console.error('Error verifying mining status:', error);
+        console.error('Error evaluating contract:', error);
       }
+    }
+
+    if (highestScoreRig && highestScoreData) {
+      if (SIMPLE_MODE) {
+        queriedAddresses.add(walletAddress.toLowerCase());
+        return res.status(200).json({
+          success: true,
+          message: `Pass - Your score is ${highestScore.toString()}`
+        });
+      }
+
+      return res.json({
+        success: true,
+        hasMined: true,
+        contractAddress: highestScoreRig.address,
+        rigName: highestScoreRig.name || 'Unknown',
+        data: {
+          walletAddress: walletAddress,
+          hasMined: true,
+          rigName: highestScoreRig.name || 'Unknown',
+          score: highestScore.toString(),
+          totalMiningTxs: highestScoreData.totalMiningTxs.toString(),
+          scores: {
+            base: highestScoreData.base.toString(),
+            balance: highestScoreData.balance.toString(),
+            frequency: highestScoreData.frequency.toString(),
+            held: highestScoreData.held.toString(),
+            debt: highestScoreData.debt.toString(),
+            redeemable: highestScoreData.redeemable.toString()
+          }
+        }
+      });
     }
 
     if (lastError) {
@@ -151,6 +180,13 @@ app.get('/api/verify/:walletAddress', async (req, res) => {
         success: false,
         error: 'Internal server error',
         message: lastError.message
+      });
+    }
+
+    if (SIMPLE_MODE) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fail - Your score is 0'
       });
     }
 
