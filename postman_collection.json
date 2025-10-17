@@ -1,0 +1,128 @@
+{
+  "info": {
+    "name": "Zealy Mining Verification API",
+    "description": "API endpoints for verifying MiningRig contract activity",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "walletAddress",
+      "value": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the API is running and healthy"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Mining Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/verify/{{walletAddress}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "verify", "{{walletAddress}}"]
+        },
+        "description": "Check if a wallet address has mined and get their score"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Minimum Transactions",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/verify/{{walletAddress}}/min-txs/5",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "verify", "{{walletAddress}}", "min-txs", "5"]
+        },
+        "description": "Check if a wallet has completed at least N mining transactions"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Minimum Score",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/verify/{{walletAddress}}/min-score/1000000",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "verify", "{{walletAddress}}", "min-score", "1000000"]
+        },
+        "description": "Check if a wallet has achieved a minimum mining score"
+      },
+      "response": []
+    },
+    {
+      "name": "Batch Verification",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"walletAddresses\": [\n    \"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb\",\n    \"0x1234567890123456789012345678901234567890\"\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/verify/batch",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "verify", "batch"]
+        },
+        "description": "Verify multiple wallet addresses in a single request"
+      },
+      "response": []
+    },
+    {
+      "name": "Invalid Address Test",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/verify/invalid-address",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "verify", "invalid-address"]
+        },
+        "description": "Test error handling with an invalid wallet address"
+      },
+      "response": []
+    },
+    {
+      "name": "Not Found Test",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/nonexistent",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "nonexistent"]
+        },
+        "description": "Test 404 error handling"
+      },
+      "response": []
+    }
+  ]
+}
